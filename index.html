@@ -350,5 +350,50 @@
   restore();
 })();
 </script>
+<div id="pfb" role="alertdialog" aria-live="assertive" style="display:none;position:fixed;left:10px;right:10px;bottom:16px;z-index:9999;background:#fff8e1;border:2px solid #b26a00;border-radius:12px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.3);font:16px/1.4 Arial,Helvetica,sans-serif;color:#000">
+  <div style="font-weight:bold;margin-bottom:6px">Printing isn't available in this app's browser.</div>
+  <div>Open this page in Safari or Chrome: tap <b>⋯</b> or the <b>Share</b> icon → <b>Open in Safari</b> (or <b>Open in browser</b>), then tap Print.</div>
+  <div style="display:flex;gap:8px;margin-top:10px">
+    <button type="button" id="pfbCopy" style="flex:1;min-height:46px;font-size:16px;font-weight:bold;border:0;border-radius:10px;background:#1f3b5c;color:#fff">Copy link</button>
+    <button type="button" id="pfbClose" style="flex:1;min-height:46px;font-size:16px;font-weight:bold;border:1px solid #1f3b5c;border-radius:10px;background:#fff;color:#1f3b5c">Close</button>
+  </div>
+  <div id="pfbMsg" style="margin-top:6px;font-size:14px;color:#2a5d34;min-height:18px"></div>
+</div>
+<style>@media print{#pfb{display:none!important}}</style>
+<script>
+/* Print fallback: in-app browsers (Messenger, Viber, etc.) often ignore window.print().
+   If no print event fires within ~1.5 s, explain how to open the page in Safari/Chrome. */
+(function(){
+  'use strict';
+  var box = document.getElementById('pfb'), msg = document.getElementById('pfbMsg');
+  var nativePrint = (typeof window.print === 'function') ? window.print.bind(window) : null;
+  var fired = false;
+  function mark(){ fired = true; box.style.display = 'none'; }
+  window.addEventListener('beforeprint', mark); window.addEventListener('afterprint', mark);
+  try { var mq = window.matchMedia && window.matchMedia('print'); if (mq){ var f = function(e){ if (e.matches) mark(); }; if (mq.addEventListener) mq.addEventListener('change', f); else if (mq.addListener) mq.addListener(f); } } catch (e) {}
+  function show(){ msg.textContent = ''; box.style.display = 'block'; }
+  window.print = function(){
+    fired = false;
+    var t0 = Date.now();
+    try { if (nativePrint) nativePrint(); else { show(); return; } } catch (e) { show(); return; }
+    // print() blocks in some browsers while the dialog is open; a long block means it worked.
+    if (Date.now() - t0 > 1000) fired = true;
+    setTimeout(function(){ if (!fired) show(); }, 1500);
+  };
+  document.getElementById('pfbClose').addEventListener('click', function(){ box.style.display = 'none'; });
+  document.getElementById('pfbCopy').addEventListener('click', function(){
+    var url = location.href.split('#')[0];
+    function done(){ msg.textContent = 'Link copied. Paste it into Safari.'; }
+    function legacy(){
+      var ta = document.createElement('textarea'); ta.value = url; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.top = '-1000px';
+      document.body.appendChild(ta); ta.select(); try { ta.setSelectionRange(0, url.length); } catch (e) {}
+      var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      if (ok) done(); else msg.textContent = 'Copy this link: ' + url;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, legacy); else legacy();
+  });
+})();
+</script>
 </body>
 </html>
